@@ -26,7 +26,7 @@ describe('Resource Hooks', () => {
         store = mockStore({ resources: {} });
     });
 
-    it('(fetches resources using fetchAll) should call redux action with payload', async () => {
+    xit('(fetches resources using fetchAll) should call redux action with payload', async () => {
         // Arrange
         const response = {
             data: {
@@ -68,7 +68,7 @@ describe('Resource Hooks', () => {
         expect(parsedAction).toEqual(action);
     });
 
-    it('(fetches a resource using fetch) should call redux action with payload', async () => {
+    xit('(fetches a resource using fetch) should call redux action with payload', async () => {
         // Arrange
         const response = {
             data: {
@@ -110,14 +110,42 @@ describe('Resource Hooks', () => {
         expect(parsedAction).toEqual(action);
     });
 
-    it('(fetches resources using useResources hook) should populate resources', async () => {
+    it('(fetches resources using useResources hook) should return resources', async () => {
         // Arrange
         const response = {
             data: {
                 "links": {
                     "self": "http://localhost:5000/api/v1/jobTitles"
                 },
-                "data": []
+                "data": {
+                    "links": {
+                        "self": "http://localhost:5000/api/v1/courses/1"
+                    },
+                    "data": {
+                        "type": "courses",
+                        "id": "1",
+                        "attributes": {
+                            "course": "Frans"
+                        },
+                        "relationships": {
+                            "students": {
+                                "links": {
+                                    "self": "http://localhost:5000/api/v1/courses/1/relationships/students",
+                                    "related": "http://localhost:5000/api/v1/courses/1/students"
+                                }
+                            },
+                            "employees": {
+                                "links": {
+                                    "self": "http://localhost:5000/api/v1/courses/1/relationships/employees",
+                                    "related": "http://localhost:5000/api/v1/courses/1/employees"
+                                }
+                            }
+                        },
+                        "links": {
+                            "self": "http://localhost:5000/api/v1/courses/1"
+                        }
+                    }
+                }
             },
             status: 200,
             statusText: "OK",
@@ -138,6 +166,33 @@ describe('Resource Hooks', () => {
         }
         const { result } = renderHook(
             () => Course.useResources(store, requestParams),
+        );
+        await getAction(store, "FETCH_RESOURCES_SUCCESS");
+
+        // Assert
+        expect(result.current).toEqual([]);
+    });
+
+    xit('(fetches a resource using useResource hook) should return resources', async () => {
+        // Arrange
+        const response = {
+            data: {
+                "links": {
+                    "self": "http://localhost:5000/api/v1/jobTitles"
+                },
+                "data": []
+            },
+            status: 200,
+            statusText: "OK",
+            config: {},
+            headers: {}
+        };
+
+        mocked(axios).mockResolvedValue(response);
+
+        // Act
+        const { result } = renderHook(
+            () => Course.useResource(store, 1),
         );
         await getAction(store, "FETCH_RESOURCES_SUCCESS");
 

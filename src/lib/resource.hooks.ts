@@ -41,25 +41,22 @@ export class ResourceHook extends Resource {
     const type = this.prototype.type;
     return createSelector(
       (state: any) => state.api.resources,
-      (resources: any) => {
-        if (type && resources) {
-          let resourceObjects: any = [];
+      (rawResources: any) => {
+        if (type && rawResources) {
+          let resources: any = [];
+          let builtResources: any = build(rawResources, type, null, { ignoreLinks: true, includeType: true });
 
-          // Build resources
-          let selectedResources: any = build(resources, type, null, { ignoreLinks: true, includeType: true });
-
-          // Filter resources
-          if (selectedResources) {
-            selectedResources = this.filterByQuery(selectedResources, requestParams);
-            selectedResources = this.filterByPage(selectedResources, requestParams);  
+          if (builtResources) {
+            builtResources = this.filterByQuery(builtResources, requestParams);
+            builtResources = this.filterByPage(builtResources, requestParams);
           }
-         
+
           // Create class instances
-          selectedResources && selectedResources.forEach((r: any) => {
-            resourceObjects.push(baseClass.create(baseClass, r));
+          builtResources && builtResources.forEach((r: any) => {
+            resources.push(baseClass.create(baseClass, r));
           });
 
-          return [...resourceObjects || []];
+          return [...resources || []];
         }
       }
     );
@@ -69,22 +66,21 @@ export class ResourceHook extends Resource {
   * React hook: Use this resource by fetching and selecting from store
   * @param id
   */
-  // public static useResource(id: number) {
-  //   React.useEffect(() => {
-  //     if (id) this.fetch(id);
-  //   }, [id]);
-  //   let resource = this.select(id);
-  //   return resource;
-  // }
+  public static async useResource(store: any, id: number) {
+    await this.fetch(store, id);
+    let resource = this.select(id);
+    return resource;
+  }
 
   /**
    * React hook: Use resources by fetching and selecting from store
    * @param requestParams 
    */
-  public static useResources(store: any, requestParams?: IRequestParams) {
-    requestParams = requestParams ? requestParams: {};
+  public static async useResources(store: any, requestParams?: IRequestParams) {
+    requestParams = requestParams ? requestParams : {};
     this.fetchAll(store, requestParams);
     const resources = this.selectAll(requestParams);
+    console.log(resources);
     return resources;
   }
 
@@ -94,7 +90,9 @@ export class ResourceHook extends Resource {
   public static select(id: number) {
     const type = this.prototype.type;
     if (type) {
+      console.log("SELECT");
       const selectResource = this.createResourceSelector(id);
+      console.log(selectResource);
       let resource = useSelector(selectResource, shallowEqual);
       return resource;
     }
@@ -104,26 +102,13 @@ export class ResourceHook extends Resource {
    * 
    */
   public static selectAll(requestParams?: IRequestParams) {
-    requestParams = requestParams ? requestParams: {};
+    requestParams = requestParams ? requestParams : {};
     const selectResources = this.createResourcesSelector(requestParams);
     let resources = useSelector(selectResources, shallowEqual);
     return resources;
   }
 
-  /**
-   * Fetch this resource
-   */
-  public static fetch(store: any, id: number) {
-    const request: JsonApiRequestConfig = {
-      action: "FETCH_RESOURCES",
-      method: "GET",
-      endpoint: `${this.prototype.type}/${id}`,
-      queryParams: {
-        include: this.prototype.includes
-      }
-    }
-    this.action(store, request);
-  }
+  
 
   public static createResource(fields, cb?, actionType = "POST_API") {
     const type = this.prototype.type;
@@ -144,6 +129,7 @@ export class ResourceHook extends Resource {
   public static action(store: any, request: any) {
     HttpRequestBuilder.jsonApiRequest(request)
       .then(payload => {
+        console.log("PAYLOAD = ", payload);
         store.dispatch({ type: `${request.action}_SUCCESS`, payload });
       });
   }
@@ -151,8 +137,25 @@ export class ResourceHook extends Resource {
   /**
    * Fetch this resource
    */
+  public static async fetch(store: any, id: number) {
+    useEffect(() => {
+      const request: JsonApiRequestConfig = {
+        action: "FETCH_RESOURCES",
+        method: "GET",
+        endpoint: `${this.prototype.type}/${id}`,
+        queryParams: {
+          include: this.prototype.includes
+        }
+      }
+      this.action(store, request);
+    }, [id]);
+  }
+
+  /**
+   * Fetch this resource
+   */
   public static async fetchAll(store, requestParams?: IRequestParams) {
-    requestParams = requestParams ? requestParams: {};
+    requestParams = requestParams ? requestParams : {};
     const { type, includes, searchable, size, number } = this.prototype;
     const { filter, page } = requestParams;
 
