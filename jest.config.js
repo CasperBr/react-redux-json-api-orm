@@ -6,5 +6,6 @@ module.exports = {
   modulePathIgnorePatterns: ["<rootDir>/src/__tests__/helpers"],
   testRegex: '(/__tests__/.*|(\\.|/)(test|spec))\\.ts?$',
   moduleFileExtensions: ['ts', 'js', 'json', 'node'],
-  clearMocks: true
+  clearMocks: true,
+  verbose: true
 };

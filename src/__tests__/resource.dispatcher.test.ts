@@ -6,7 +6,7 @@ import { Course } from './helpers/CourseDispatcher';
 
 jest.mock("axios");
 
-describe("Fetch API actions", () => {
+describe("Resource dispatcher", () => {
   let store: any;
   const response = {
     data: {
@@ -36,16 +36,10 @@ describe("Fetch API actions", () => {
   beforeEach(() => {
     let mockStore = configureMockStore();
     store = mockStore({ resources: {} });
-
-    // const AUTH_TOKEN = "Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiIxIiwidW5pcXVlX25hbWUiOiJhZG1pbkBhZG1pbi5ubCIsIm5iZiI6MTU4NjAyNjMxMSwiZXhwIjoxNTg2MTEyNzExLCJpYXQiOjE1ODYwMjYzMTF9.vUc7ZK9lf0PvhFHVnIUY6391om122QpeO2gxp4_7JtiVeaSBtpjzX5NrIDz3FvJPKZ9DpV3RandcPoEZS52M9g";
-    // axios.defaults.headers.common['Authorization'] = AUTH_TOKEN;
-    // axios.defaults.baseURL = 'http://localhost:5000/api/v1';
   });
 
-  it("(fetches reports) should call FETCH_API_REQUEST", async () => {
+  it("(fetches resources using fetchAll) should call redux action with payload", async () => {
     // Arrange
-
-
     mocked(axios).mockResolvedValue(response);
 
     // Act

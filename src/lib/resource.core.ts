@@ -2,7 +2,6 @@ import 'reflect-metadata';
 import { inject, injectable } from 'inversify';
 
 export interface IRequestParams {
-  action?: string
   filter?: string
   page?: {
     number?: number
@@ -17,13 +16,9 @@ export interface IRequestParams {
 export class Resource {
   id?: string;
   type?: string;
+  size: number = 10;
+  number: number = 1;
 
-  // @inject("Store")
-  // public _store: any
-  
-  // constructor(@inject("Store") store: any) {
-  //   this._store = store;
-  // }
 
   get fields() {
     return Reflect.getMetadata('field', this) || [];

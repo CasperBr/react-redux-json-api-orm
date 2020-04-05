@@ -2,7 +2,7 @@ import { Resource, IRequestParams } from "./resource.core";
 import { createSelector } from "reselect";
 import React, { useEffect } from "react";
 import { useSelector, shallowEqual } from "react-redux";
-import { convertFieldsToJsonApi, entitiesToRelationships } from "./utils";
+import { convertFieldsToJsonApi } from "./utils";
 import build from 'redux-object';
 import { HttpRequestBuilder } from "./httpRequestBuilder";
 import { JsonApiRequestConfig } from "./types";
@@ -49,9 +49,11 @@ export class ResourceHook extends Resource {
           let selectedResources: any = build(resources, type, null, { ignoreLinks: true, includeType: true });
 
           // Filter resources
-          selectedResources = this.filterByQuery(selectedResources, requestParams);
-          selectedResources = this.filterByPage(selectedResources, requestParams);
-
+          if (selectedResources) {
+            selectedResources = this.filterByQuery(selectedResources, requestParams);
+            selectedResources = this.filterByPage(selectedResources, requestParams);  
+          }
+         
           // Create class instances
           selectedResources && selectedResources.forEach((r: any) => {
             resourceObjects.push(baseClass.create(baseClass, r));
@@ -80,6 +82,7 @@ export class ResourceHook extends Resource {
    * @param requestParams 
    */
   public static useResources(store: any, requestParams?: IRequestParams) {
+    requestParams = requestParams ? requestParams: {};
     this.fetchAll(store, requestParams);
     const resources = this.selectAll(requestParams);
     return resources;
@@ -101,6 +104,7 @@ export class ResourceHook extends Resource {
    * 
    */
   public static selectAll(requestParams?: IRequestParams) {
+    requestParams = requestParams ? requestParams: {};
     const selectResources = this.createResourcesSelector(requestParams);
     let resources = useSelector(selectResources, shallowEqual);
     return resources;
@@ -140,7 +144,6 @@ export class ResourceHook extends Resource {
   public static action(store: any, request: any) {
     HttpRequestBuilder.jsonApiRequest(request)
       .then(payload => {
-        console.log(payload);
         store.dispatch({ type: `${request.action}_SUCCESS`, payload });
       });
   }
@@ -149,16 +152,9 @@ export class ResourceHook extends Resource {
    * Fetch this resource
    */
   public static async fetchAll(store, requestParams?: IRequestParams) {
-    const { type, includes, searchable } = this.prototype;
-    // const { filter, page } = requestParams;
-    // let size, number;
-    // if (page && !page.size && !page.number) {
-    //   page.size = 10;
-    //   page.number = 1;
-    // } else if (page) {
-    //   size = page.size;
-    //   number = page.number
-    // }
+    requestParams = requestParams ? requestParams: {};
+    const { type, includes, searchable, size, number } = this.prototype;
+    const { filter, page } = requestParams;
 
     useEffect(() => {
       if (type) {
@@ -166,21 +162,21 @@ export class ResourceHook extends Resource {
           action: "FETCH_RESOURCES",
           method: "GET",
           endpoint: type,
-          // queryParams: {
-          //   filter: {
-          //     query: filter,
-          //     field: searchable.length ? searchable[0] : null
-          //   },
-          //   include: includes,
-          //   page: {
-          //     size,
-          //     number
-          //   }
+          queryParams: {
+            filter: {
+              query: filter,
+              field: searchable.length ? searchable[0] : null
+            },
+            include: includes,
+            page: {
+              size: page && page.size ? page.size : size,
+              number: page && page.number ? page.number : number
+            }
+          }
         }
         this.action(store, request);
       }
-    }, [type])
-    // }, [filter, type, size, number])
+    }, [filter, type, size, number])
   }
 
   /**
@@ -289,11 +285,12 @@ export class ResourceHook extends Resource {
    * @param resources 
    * @param requestParams 
    */
-  public static filterByQuery(resources, requestParams) {
+  public static filterByQuery(resources, requestParams: IRequestParams) {
     if (!requestParams) return resources;
 
     const { searchable } = this.prototype;
     const { filter } = requestParams;
+
     if (searchable && filter) {
       return resources.filter((r: any) => {
         return r[searchable[0]].indexOf(filter) > -1;
