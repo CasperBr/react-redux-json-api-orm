@@ -44,7 +44,7 @@ export abstract class HttpRequestBuilder {
   }
 
   public static buildUrl(request: JsonApiRequestConfig) {
-    let url = request.endpoint + '/';
+    let url = request.endpoint
     const paramString: any = HttpRequestBuilder.buildUrlQuery(request.queryParams);
     if (paramString) url = `${url}?${paramString}`
     return url;
@@ -53,7 +53,6 @@ export abstract class HttpRequestBuilder {
   public static jsonApiRequest(request: any) {
     const url = HttpRequestBuilder.buildUrl(request);
     const body = request.formData ? request.formData : {};
-    
     return axios({
       method: request.method,
       headers: {

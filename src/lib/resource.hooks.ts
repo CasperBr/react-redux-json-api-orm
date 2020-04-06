@@ -19,9 +19,9 @@ export class ResourceHook extends Resource {
     const baseClass = this;
     const type = this.prototype.type;
     return createSelector(
-      (state: any) => state.api.resources,
+      (state: any) => state.api,
       (resources: any) => {
-        if (type && resources[type]) {
+        if (resources && type && resources[type]) {
           let resource = build(resources, type, id, { ignoreLinks: true, includeType: true });
           if (resource && resource.id) {
             return baseClass.createResource(this, resource);
@@ -35,11 +35,11 @@ export class ResourceHook extends Resource {
    * React hook: Select all resources from store
    * @param type 
    */
-  public static createResourcesSelector(requestParams?: IRequestParams) {
+  public static createResourcesSelector(requestParams?: any) {
     const baseClass = this;
     const type = this.prototype.type;
     return createSelector(
-      (state: any) => state.api.resources,
+      (state: any) => state.api,
       (rawResources: any) => {
         if (type && rawResources) {
           let resources: any = [];
@@ -65,8 +65,8 @@ export class ResourceHook extends Resource {
   * React hook: Use this resource by fetching and selecting from store
   * @param id
   */
-  public static async useResource(store: any, id: number) {
-    await this.fetch(store, id);
+  public static useResource(store: any, id: number) {
+    this.fetch(store, id);
     let resource = this.select(id);
     return resource;
   }
@@ -75,7 +75,7 @@ export class ResourceHook extends Resource {
    * React hook: Use resources by fetching and selecting from store
    * @param requestParams 
    */
-  public static async useResources(store: any, requestParams?: IRequestParams) {
+  public static useResources(store: any, requestParams?: IRequestParams) {
     requestParams = requestParams ? requestParams : {};
     this.fetchAll(store, requestParams);
     const resources = this.selectAll(requestParams);
@@ -124,7 +124,7 @@ export class ResourceHook extends Resource {
   /**
    * Fetch all resources from api by class type
    */
-  public static async fetchAll(store, requestParams?: IRequestParams) {
+  public static fetchAll(store, requestParams?: IRequestParams) {
     requestParams = requestParams ? requestParams : {};
     const { type, includes, searchable, size, number } = this.prototype;
     const { filter, page } = requestParams;
@@ -157,12 +157,12 @@ export class ResourceHook extends Resource {
    * @param store 
    * @param fields 
    */
-  public static create(store: any, fields: any) {
+  public static create(store: any, fields: any, action?: string) {
     // Migrate this outside class
     const data = convertFieldsToJsonApi(fields);
 
     const request = {
-      action: "POST_API",
+      action: action ? action : "POST_API",
       endpoint: `${this.prototype.type}/`,
       method: "POST",
       formData: {

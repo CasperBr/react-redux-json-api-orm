@@ -10,9 +10,9 @@ export class StateManager {
   }
 
   public static hydrateRelationships(resources, payload) {
-    let { id, type, relationshipType, relationshipFields } = payload;
+    let { id, type, rType, relationships } = payload;
     return produce(resources, (draft: any) => {
-      draft[type][id].relationships[relationshipType].data = relationshipFields
+      draft[type][id].relationships[rType].data = relationships
     });
   }
 
