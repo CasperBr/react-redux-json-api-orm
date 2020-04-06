@@ -1,10 +1,9 @@
 import { Resource, IRequestParams } from "./resource.core";
 import { createSelector } from "reselect";
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { useSelector, shallowEqual } from "react-redux";
-import { convertFieldsToJsonApi } from "./utils";
+import { convertFieldsToJsonApi, entitiesToRelationships } from "./utils";
 import build from 'redux-object';
-import { HttpRequestBuilder } from "./httpRequestBuilder";
 import { JsonApiRequestConfig } from "./types";
 
 /**
@@ -25,7 +24,7 @@ export class ResourceHook extends Resource {
         if (type && resources[type]) {
           let resource = build(resources, type, id, { ignoreLinks: true, includeType: true });
           if (resource && resource.id) {
-            return baseClass.create(this, resource);
+            return baseClass.createResource(this, resource);
           }
         }
       }
@@ -53,7 +52,7 @@ export class ResourceHook extends Resource {
 
           // Create class instances
           builtResources && builtResources.forEach((r: any) => {
-            resources.push(baseClass.create(baseClass, r));
+            resources.push(baseClass.createResource(baseClass, r));
           });
 
           return [...resources || []];
@@ -80,7 +79,6 @@ export class ResourceHook extends Resource {
     requestParams = requestParams ? requestParams : {};
     this.fetchAll(store, requestParams);
     const resources = this.selectAll(requestParams);
-    console.log(resources);
     return resources;
   }
 
@@ -90,16 +88,14 @@ export class ResourceHook extends Resource {
   public static select(id: number) {
     const type = this.prototype.type;
     if (type) {
-      console.log("SELECT");
       const selectResource = this.createResourceSelector(id);
-      console.log(selectResource);
       let resource = useSelector(selectResource, shallowEqual);
       return resource;
     }
   }
 
   /**
-   * 
+   * Select all resources from store
    */
   public static selectAll(requestParams?: IRequestParams) {
     requestParams = requestParams ? requestParams : {};
@@ -108,34 +104,8 @@ export class ResourceHook extends Resource {
     return resources;
   }
 
-  
-
-  public static createResource(fields, cb?, actionType = "POST_API") {
-    const type = this.prototype.type;
-    const data = convertFieldsToJsonApi(fields);
-    // action(actionType, {
-    //   endpoint: `${type}/`,
-    //   method: "POST",
-    //   formData: {
-    //     data:
-    //     {
-    //       "type": type,
-    //       ...data
-    //     }
-    //   }
-    // });
-  }
-
-  public static action(store: any, request: any) {
-    HttpRequestBuilder.jsonApiRequest(request)
-      .then(payload => {
-        console.log("PAYLOAD = ", payload);
-        store.dispatch({ type: `${request.action}_SUCCESS`, payload });
-      });
-  }
-
   /**
-   * Fetch this resource
+   * Fetch resource from api by id
    */
   public static async fetch(store: any, id: number) {
     useEffect(() => {
@@ -147,12 +117,12 @@ export class ResourceHook extends Resource {
           include: this.prototype.includes
         }
       }
-      this.action(store, request);
+      this.asyncAction(store, request);
     }, [id]);
   }
 
   /**
-   * Fetch this resource
+   * Fetch all resources from api by class type
    */
   public static async fetchAll(store, requestParams?: IRequestParams) {
     requestParams = requestParams ? requestParams : {};
@@ -177,103 +147,129 @@ export class ResourceHook extends Resource {
             }
           }
         }
-        this.action(store, request);
+        this.asyncAction(store, request);
       }
     }, [filter, type, size, number])
   }
 
   /**
-   * Patch this resource
+   * Create a resource and store response in store
+   * @param store 
+   * @param fields 
    */
-  // patch(resource) {
-  //   action("POST_API", {
-  //     endpoint: `${this.type}/${this.id}`,
-  //     method: "PATCH",
-  //     formData: {
-  //       data:
-  //       {
-  //         "id": this.id,
-  //         "type": this.type,
-  //         ...resource
-  //       }
-  //     }
-  //   });
-  //   hydrate("PATCH_RESOURCE", {
-  //     id: this.id,
-  //     type: this.type,
-  //     ...resource
-  //   });
-  // }
+  public static create(store: any, fields: any) {
+    // Migrate this outside class
+    const data = convertFieldsToJsonApi(fields);
 
-  // /**
-  //  * Delete this resource
-  //  */
-  // delete() {
-  //   action("POST_API", {
-  //     endpoint: `${this.type}/${this.id}`,
-  //     method: "DELETE",
-  //     formData: {
-  //       data:
-  //       {
-  //         "id": this.id,
-  //         "type": this.type
-  //       }
-  //     }
-  //   });
-  // }
+    const request = {
+      action: "POST_API",
+      endpoint: `${this.prototype.type}/`,
+      method: "POST",
+      formData: {
+        data:
+        {
+          "type": this.prototype.type,
+          ...data
+        }
+      }
+    };
+    this.asyncAction(store, request);
+  }
 
-  // /**
-  //  * Add array of relationships to resource
-  //  * @param relationshipFields 
-  //  */
-  // patchRelationships(relationships: any, rType: any) {
-  //   action("POST_API", {
-  //     endpoint: `${this.type}/${this.id}/relationships/${rType}`,
-  //     method: "PATCH",
-  //     formData: {
-  //       "data": relationships
-  //     }
-  //   });
-  //   hydrate("HYDRATE_RELATIONSHIPS", {
-  //     id: this.id,
-  //     type: this.type,
-  //     relationships,
-  //     rType
-  //   });
-  // }
+  /**
+   * Patch this resource in api. Hydrates store.
+   */
+  public patch(store: any, resource) {
+    const data = {
+      "id": this.id,
+      "type": this.type,
+      ...resource
+    };
 
-  // /**
-  //  * Delete relationship from table and store
-  //  * @param rId
-  //  * @param rType 
-  //  */
-  // deleteRelationship(rId, rType) {
-  //   const relationships = this[rType];
-  //   if (relationships) {
+    const request = {
+      endpoint: `${this.type}/${this.id}`,
+      formData: {
+        data
+      }
+    };
 
-  //     // Update table
-  //     Object.keys(relationships).forEach(function (key) {
-  //       if (relationships[key].id === rId) delete relationships[key];
-  //     });
-  //     const relationshipFields = [...entitiesToRelationships(this[rType], rType)];
-  //     this.patchRelationships(relationshipFields, rType);
+    this.asyncAction(store, { ...request, action: "PATCH_RESOURCE", method: "PATCH" });
+    this.hydrate(store, "HYDRATE_RESOURCE", data);
+  }
 
-  //     // Hydrate store
-  //     hydrate("DELETE_RELATIONSHIP", {
-  //       id: this.id,
-  //       type: this.type,
-  //       rType,
-  //       rId
-  //     });
-  //   }
-  // }
+  /**
+   * Delete this resource
+   */
+  delete(store: any) {
+    const request = {
+      action: "POST_API",
+      endpoint: `${this.type}/${this.id}`,
+      method: "DELETE",
+      formData: {
+        data:
+        {
+          "id": this.id,
+          "type": this.type
+        }
+      }
+    };
+    this.asyncAction(store, request);
+  }
+
+  /**
+   * Add array of relationships to resource
+   * @param relationshipFields 
+   */
+  patchRelationships(store: any, relationships: any, rType: any) {
+    const request = {
+      type: "POST_API",
+      endpoint: `${this.type}/${this.id}/relationships/${rType}`,
+      method: "PATCH",
+      formData: {
+        "data": relationships
+      }
+    }
+    this.asyncAction(store, request);
+
+    this.hydrate(store, "HYDRATE_RELATIONSHIPS", {
+      id: this.id,
+      type: this.type,
+      relationships,
+      rType
+    });
+  }
+
+  /**
+   * Delete relationship from table and store
+   * @param rId
+   * @param rType 
+   */
+  deleteRelationship(store, rId: number, rType: string) {
+    if (!this[rType]) return;
+    const relationships = this[rType];
+  
+    // Update table
+    Object.keys(relationships).forEach(function (key) {
+      if (relationships[key].id === rId) delete relationships[key];
+    });
+    const relationshipFields = [...entitiesToRelationships(this[rType], rType)];
+    this.patchRelationships(store, relationshipFields, rType);
+
+    // Hydrate store
+    this.hydrate(store, "DELETE_RELATIONSHIP", {
+      id: this.id,
+      type: this.type,
+      rType,
+      rId
+    });
+  }
 
   /**
   * Create new instance of this resource
   * @param type 
   * @param arg 
   */
-  public static create(type: any, arg: any) {
+  public static createResource(type: any, arg: any) {
     let resource = new type(arg);
     if (arg && Object.keys(arg).length > 0) {
       Object.keys(arg).forEach((key) => {
@@ -322,20 +318,19 @@ export class ResourceHook extends Resource {
   /**
    * Non generic functions, should be moved to Project scope.
    */
-  // patchFormFields(fields) {
-  //   const data = convertFieldsToJsonApi(fields);
-  //   this.patch(data);
-  // }
+  patchFormFields(store, fields) {
+    const data = convertFieldsToJsonApi(fields);
+    this.patch(store, data);
+  }
 
   /**
    * Add a single relationship to this resource
    * @param relationshipField 
    */
-  // addRelationship(relationshipField) {
-  //   if (relationshipField) {
-  //     const type = relationshipField.type;
-  //     const relationshipFields = [...entitiesToRelationships(this[type], type), relationshipField];
-  //     this.patchRelationships(relationshipFields, type);
-  //   }
-  // }
+  addRelationship(store, relationshipField) {
+    if (!relationshipField) return;
+    const type = relationshipField.type;
+    const relationshipFields = [...entitiesToRelationships(this[type], type), relationshipField];
+    this.patchRelationships(store, relationshipFields, type);
+  }
 }
