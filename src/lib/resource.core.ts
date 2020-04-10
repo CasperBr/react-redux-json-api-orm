@@ -59,6 +59,7 @@ export class Resource {
     HttpRequestBuilder.jsonApiRequest(request)
       .then(payload => {
         store.dispatch({ type: `${request.action}_SUCCESS`, payload });
+        if (request.cb) request.cb();
       });
   }
 }

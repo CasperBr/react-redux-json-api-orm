@@ -157,7 +157,7 @@ export class ResourceHook extends Resource {
    * @param store 
    * @param fields 
    */
-  public static create(store: any, fields: any, action?: string) {
+  public static create(store: any, fields: any, action?: string, cb?: () => void) {
     // Migrate this outside class
     const data = convertFieldsToJsonApi(fields);
 
@@ -171,7 +171,8 @@ export class ResourceHook extends Resource {
           "type": this.prototype.type,
           ...data
         }
-      }
+      },
+      cb
     };
     this.asyncAction(store, request);
   }
