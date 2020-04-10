@@ -74,9 +74,6 @@ export abstract class HttpRequestBuilder {
       if (axios.isCancel(error)) {
         console.log('post Request canceled');
       }
-      if (error.response.status === 401) {
-        window.location.href = "/sign-in";
-      }
     });;
   }
 }
