@@ -23,6 +23,16 @@ export class StateManager {
     );
   }
 
+  public static deleteResource(resources, payload) {
+    return produce(resources, draft => {
+      delete draft[payload.type][payload.id];
+    });
+    // return _.mergeWith(
+    //   {}, resources, payload,
+    //   (a, b) => b === null ? a : undefined
+    // );
+  }
+
   public static deleteRelationship(resources, payload) {
     let { id, type, relationshipType, relationshipId } = payload;
     const filteredResources = produce(resources, draft => {

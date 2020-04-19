@@ -21,6 +21,14 @@ export abstract class HttpRequestBuilder {
     return '';
   }
 
+  public static buildDateFilter(dates: any) {
+    const { field, min, max } = dates;
+    let filters: any[] = [];
+    if (min) filters.push(`filter[${field}]=ge:${min}`);
+    if (max) filters.push(`filter[${field}]=le:${max}`);
+    return filters;
+  }
+
   public static buildUrlQuery(queryParams) {
     let params: string[] = [];
     if (queryParams) {
@@ -34,6 +42,14 @@ export abstract class HttpRequestBuilder {
             let page = HttpRequestBuilder.buildPageFilter(queryParams.page);
             if (page) params.push(page);
             break;
+          case "date":
+            if (queryParams.date.field) {
+              let date = HttpRequestBuilder.buildDateFilter(queryParams.date);
+              if (date) {
+                params = [...params, ...date]
+              }
+            }        
+            break;
           default:
             if (queryParams[param])
               params.push(`${param}=${queryParams[param]}`);
@@ -44,7 +60,7 @@ export abstract class HttpRequestBuilder {
   }
 
   public static buildUrl(request: JsonApiRequestConfig) {
-    let url = request.endpoint
+    let url = request.endpoint;
     const paramString: any = HttpRequestBuilder.buildUrlQuery(request.queryParams);
     if (paramString) url = `${url}?${paramString}`
     return url;

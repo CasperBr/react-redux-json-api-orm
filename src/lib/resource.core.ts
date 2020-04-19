@@ -1,12 +1,19 @@
 import 'reflect-metadata';
 import { inject, injectable } from 'inversify';
 import { HttpRequestBuilder } from './httpRequestBuilder';
+import { array } from 'prop-types';
+import { ResourceHook } from './resource.hooks';
 
 export interface IRequestParams {
   filter?: string
   page?: {
     number?: number
     size?: number
+  },
+  date?: {
+    field?: string
+    min?: string,
+    max?: string
   }
 }
 
@@ -29,6 +36,10 @@ export class Resource {
     return Reflect.getMetadata('toOne', this) || [];
   }
 
+  get nested() {
+    return Reflect.getMetadata('nested', this) || [];
+  }
+
   get toMany() {
     return Reflect.getMetadata('toMany', this) || [];
   }
@@ -38,11 +49,20 @@ export class Resource {
   }
 
   get includes() {
-    let includesString = [...this.toOne, this.toMany].join(',');
-    if (includesString.length === 1) return;
-    return includesString;
+    if (this.toMany.length === 0 && this.toOne.length === 0) return;
+    return [...this.toOne, ...this.nested, ...this.toMany].join(',');
   }
 
+  patchIncludes(resource) {
+    let rRel = Object.keys(resource.relationships);
+    let includes = this.includes ? this.includes.split(','): [];
+
+    return includes.filter((r) => {
+      let e = r.split('.')[0];
+      return rRel.indexOf(e) >  -1;
+    });
+  }
+  
   public hydrate(store: any, type: string, payload: any) {
     store.dispatch({ type, payload });
   }
@@ -59,7 +79,7 @@ export class Resource {
     HttpRequestBuilder.jsonApiRequest(request)
       .then(payload => {
         store.dispatch({ type: `${request.action}_SUCCESS`, payload });
-        if (request.cb) request.cb();
+        if (request.cb) request.cb(payload);
       });
   }
 }

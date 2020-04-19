@@ -24,7 +24,14 @@ export function ToOne(args): PropertyDecorator {
 
 export function ToMany(args): PropertyDecorator {
     return (target, key) => {
-        setMetaData(target, key, "toMany")
+        if (args['nested']) {
+            let s;
+            args['nested'].forEach((n) => {
+                s += `${key.toString()}.${n},`;
+            });
+            setMetaData(target, s.slice(0, -1).replace('undefined', ''), "nested");
+        }
+        setMetaData(target, key, "toMany");
     }
 }
 

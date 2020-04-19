@@ -44,7 +44,6 @@ export class ResourceHook extends Resource {
         if (type && rawResources) {
           let resources: any = [];
           let builtResources: any = build(rawResources, type, null, { ignoreLinks: true, includeType: true });
-
           if (builtResources) {
             builtResources = this.filterByQuery(builtResources, requestParams);
             builtResources = this.filterByPage(builtResources, requestParams);
@@ -66,7 +65,9 @@ export class ResourceHook extends Resource {
   * @param id
   */
   public static useResource(store: any, id: number) {
-    this.fetch(store, id);
+    useEffect(() => {
+      this.fetch(store, id);
+    }, [id]);
     let resource = this.select(id);
     return resource;
   }
@@ -107,18 +108,16 @@ export class ResourceHook extends Resource {
   /**
    * Fetch resource from api by id
    */
-  public static async fetch(store: any, id: number) {
-    useEffect(() => {
-      const request: JsonApiRequestConfig = {
-        action: "FETCH_RESOURCES",
-        method: "GET",
-        endpoint: `${this.prototype.type}/${id}`,
-        queryParams: {
-          include: this.prototype.includes
-        }
+  public static async fetch(store: any, id: number | string | undefined) {
+    const request: JsonApiRequestConfig = {
+      action: "FETCH_RESOURCES",
+      method: "GET",
+      endpoint: `${this.prototype.type}/${id}`,
+      queryParams: {
+        include: this.prototype.includes
       }
-      this.asyncAction(store, request);
-    }, [id]);
+    }
+    this.asyncAction(store, request);
   }
 
   /**
@@ -127,7 +126,9 @@ export class ResourceHook extends Resource {
   public static fetchAll(store, requestParams?: IRequestParams) {
     requestParams = requestParams ? requestParams : {};
     const { type, includes, searchable, size, number } = this.prototype;
-    const { filter, page } = requestParams;
+    let { filter, page, date } = requestParams;
+    date = date ? date : {};
+    const { min, max, field } = date;
 
     useEffect(() => {
       if (type) {
@@ -144,12 +145,13 @@ export class ResourceHook extends Resource {
             page: {
               size: page && page.size ? page.size : size,
               number: page && page.number ? page.number : number
-            }
+            },
+            date
           }
         }
         this.asyncAction(store, request);
       }
-    }, [filter, type, size, number])
+    }, [filter, type, size, number, min, max, field])
   }
 
   /**
@@ -157,14 +159,14 @@ export class ResourceHook extends Resource {
    * @param store 
    * @param fields 
    */
-  public static create(store: any, fields: any, action?: string, cb?: () => void) {
-    // Migrate this outside class
-    const data = convertFieldsToJsonApi(fields);
-
+  public static create(store: any, data: any, action?: string, cb?: (payload?: any) => void) {
     const request = {
-      action: action ? action : "POST_API",
+      action: action ? action : "POST_RESOURCE",
       endpoint: `${this.prototype.type}/`,
       method: "POST",
+      queryParams: {
+        include: this.prototype.includes
+      },
       formData: {
         data:
         {
@@ -175,6 +177,7 @@ export class ResourceHook extends Resource {
       cb
     };
     this.asyncAction(store, request);
+    this.hydrate(store, "HYDRATE_RESOURCE", data);
   }
 
   /**
@@ -191,6 +194,9 @@ export class ResourceHook extends Resource {
       endpoint: `${this.type}/${this.id}`,
       formData: {
         data
+      },
+      queryParams: {
+        include: this.patchIncludes(resource)
       }
     };
 
@@ -202,19 +208,21 @@ export class ResourceHook extends Resource {
    * Delete this resource
    */
   delete(store: any) {
+    const data = {
+      "id": this.id,
+      "type": this.type
+    };
+
     const request = {
-      action: "POST_API",
+      action: "POST_RESOURCE",
       endpoint: `${this.type}/${this.id}`,
       method: "DELETE",
       formData: {
-        data:
-        {
-          "id": this.id,
-          "type": this.type
-        }
+        data
       }
     };
     this.asyncAction(store, request);
+    this.hydrate(store, "DELETE_RESOURCE", data);
   }
 
   /**
@@ -223,7 +231,7 @@ export class ResourceHook extends Resource {
    */
   patchRelationships(store: any, relationships: any, rType: any) {
     const request = {
-      type: "POST_API",
+      type: "POST_RESOURCE",
       endpoint: `${this.type}/${this.id}/relationships/${rType}`,
       method: "PATCH",
       formData: {
@@ -248,7 +256,7 @@ export class ResourceHook extends Resource {
   deleteRelationship(store, rId: number, rType: string) {
     if (!this[rType]) return;
     const relationships = this[rType];
-  
+
     // Update table
     Object.keys(relationships).forEach(function (key) {
       if (relationships[key].id === rId) delete relationships[key];
