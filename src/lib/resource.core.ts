@@ -1,8 +1,6 @@
 import 'reflect-metadata';
 import { inject, injectable } from 'inversify';
 import { HttpRequestBuilder } from './httpRequestBuilder';
-import { array } from 'prop-types';
-import { ResourceHook } from './resource.hooks';
 
 export interface IRequestParams {
   filter?: string
@@ -53,14 +51,26 @@ export class Resource {
     return [...this.toOne, ...this.nested, ...this.toMany].join(',');
   }
 
-  patchIncludes(resource) {
-    let rRel = Object.keys(resource.relationships);
-    let includes = this.includes ? this.includes.split(','): [];
-
-    return includes.filter((r) => {
+  public static patchIncludes(resource) {
+    let rRel = resource.relationships ? Object.keys(resource.relationships): [];
+    let includes = this.prototype.includes ? this.prototype.includes.split(','): [];
+    includes = includes.filter((r) => {
       let e = r.split('.')[0];
       return rRel.indexOf(e) >  -1;
     });
+    if (includes.length > 0) return includes;
+    return;
+  }
+
+  public patchIncludes(resource) {
+    let rRel = resource.relationships ? Object.keys(resource.relationships): [];
+    let includes = this.includes ? this.includes.split(','): [];
+    includes = includes.filter((r) => {
+      let e = r.split('.')[0];
+      return rRel.indexOf(e) >  -1;
+    });
+    if (includes.length > 0) return includes;
+    return;
   }
   
   public hydrate(store: any, type: string, payload: any) {
@@ -72,11 +82,11 @@ export class Resource {
   }
 
   public asyncAction(store: any, request: any) {
-    Resource.asyncAction(store, request);
+    return Resource.asyncAction(store, request);
   }
 
   public static asyncAction(store: any, request: any) {
-    HttpRequestBuilder.jsonApiRequest(request)
+    return HttpRequestBuilder.jsonApiRequest(request)
       .then(payload => {
         store.dispatch({ type: `${request.action}_SUCCESS`, payload });
         if (request.cb) request.cb(payload);

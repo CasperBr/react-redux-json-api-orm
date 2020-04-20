@@ -159,13 +159,13 @@ export class ResourceHook extends Resource {
    * @param store 
    * @param fields 
    */
-  public static create(store: any, data: any, action?: string, cb?: (payload?: any) => void) {
+  public static create(store: any, data: any, action?: string): any {
     const request = {
       action: action ? action : "POST_RESOURCE",
       endpoint: `${this.prototype.type}/`,
       method: "POST",
       queryParams: {
-        include: this.prototype.includes
+        include: this.patchIncludes(data)
       },
       formData: {
         data:
@@ -173,11 +173,9 @@ export class ResourceHook extends Resource {
           "type": this.prototype.type,
           ...data
         }
-      },
-      cb
+      }
     };
-    this.asyncAction(store, request);
-    this.hydrate(store, "HYDRATE_RESOURCE", data);
+    return this.asyncAction(store, request);
   }
 
   /**
@@ -199,15 +197,14 @@ export class ResourceHook extends Resource {
         include: this.patchIncludes(resource)
       }
     };
-
-    this.asyncAction(store, { ...request, action: "PATCH_RESOURCE", method: "PATCH" });
     this.hydrate(store, "HYDRATE_RESOURCE", data);
+    return this.asyncAction(store, { ...request, action: "PATCH_RESOURCE", method: "PATCH" });
   }
 
   /**
    * Delete this resource
    */
-  delete(store: any) {
+  public delete(store: any) {
     const data = {
       "id": this.id,
       "type": this.type
@@ -229,7 +226,7 @@ export class ResourceHook extends Resource {
    * Add array of relationships to resource
    * @param relationshipFields 
    */
-  patchRelationships(store: any, relationships: any, rType: any) {
+  public patchRelationships(store: any, relationships: any, rType: any) {
     const request = {
       type: "POST_RESOURCE",
       endpoint: `${this.type}/${this.id}/relationships/${rType}`,
@@ -253,7 +250,7 @@ export class ResourceHook extends Resource {
    * @param rId
    * @param rType 
    */
-  deleteRelationship(store, rId: number, rType: string) {
+  public deleteRelationship(store, rId: number, rType: string) {
     if (!this[rType]) return;
     const relationships = this[rType];
 
@@ -327,16 +324,16 @@ export class ResourceHook extends Resource {
   /**
    * Non generic functions, should be moved to Project scope.
    */
-  patchFormFields(store, fields) {
+  public patchFormFields(store, fields) {
     const data = convertFieldsToJsonApi(fields);
-    this.patch(store, data);
+    return this.patch(store, data);
   }
 
   /**
    * Add a single relationship to this resource
    * @param relationshipField 
    */
-  addRelationship(store, relationshipField) {
+  public addRelationship(store, relationshipField) {
     if (!relationshipField) return;
     const type = relationshipField.type;
     const relationshipFields = [...entitiesToRelationships(this[type], type), relationshipField];

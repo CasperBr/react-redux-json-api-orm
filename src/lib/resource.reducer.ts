@@ -15,6 +15,7 @@ export function resources(state = {}, action) {
       if (action.payload) {
         return StateManager.hydrateRelationships(state, action.payload);
       }
+      break;
     case "DELETE_RESOURCE":
       return StateManager.deleteResource(state, action.payload);
     default:
