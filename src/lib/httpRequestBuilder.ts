@@ -2,67 +2,38 @@ import normalize from 'json-api-normalizer';
 import axios from 'axios';
 import { JsonApiRequestConfig } from './types';
 
+export interface IQueryParam {
+  attribute: string
+  operator: string
+  value: string
+  type: string
+}
+
 /**
  * Request builder
  */
 export abstract class HttpRequestBuilder {
-  public static buildPageFilter(page) {
-    if (page && page.number && page.size) {
-      return `page[number]=${page.number}&page[size]=${page.size}`;
-    }
-    return '';
+  public static addFilter(filter: IQueryParam) {
+    const { attribute, operator, value, type } = filter;
+    return `${type}[${attribute}]${operator}${value}`;
   }
 
-  public static buildUrlFilter(filter: any) {
-    const { field, query } = filter;
-    if (field && query) {
-      return `filter[${field}]=like:${query}&`;
-    }
-    return '';
-  }
-
-  public static buildDateFilter(dates: any) {
-    const { field, min, max } = dates;
-    let filters: any[] = [];
-    if (min) filters.push(`filter[${field}]=ge:${min}`);
-    if (max) filters.push(`filter[${field}]=le:${max}`);
-    return filters;
-  }
-
-  public static buildUrlQuery(queryParams) {
+  public static buildUrlQuery(queryParams: IQueryParam[]) {
     let params: string[] = [];
-    if (queryParams) {
-      Object.keys(queryParams).forEach((param) => {
-        switch (param) {
-          case "filter":
-            let filter = HttpRequestBuilder.buildUrlFilter(queryParams.filter);
-            if (filter) params.push(filter);
-            break;
-          case "page":
-            let page = HttpRequestBuilder.buildPageFilter(queryParams.page);
-            if (page) params.push(page);
-            break;
-          case "date":
-            if (queryParams.date.field) {
-              let date = HttpRequestBuilder.buildDateFilter(queryParams.date);
-              if (date) {
-                params = [...params, ...date]
-              }
-            }        
-            break;
-          default:
-            if (queryParams[param])
-              params.push(`${param}=${queryParams[param]}`);
-        }
-      });
-    }
+    queryParams.forEach((f) => {
+      params.push(HttpRequestBuilder.addFilter(f));
+    });
+    if (params.length > 0) return params.join('&');
     if (params) return params.join('&');
   }
 
   public static buildUrl(request: JsonApiRequestConfig) {
     let url = request.endpoint;
-    const paramString: any = HttpRequestBuilder.buildUrlQuery(request.queryParams);
-    if (paramString) url = `${url}?${paramString}`
+    let includes = request.queryParams && request.queryParams.include ? `includes=${request.queryParams.include}`: '';
+    url = includes ? `${url}?${includes}`: url;
+    const filters = request.queryParams && request.queryParams.filters ? request.queryParams.filters:  [];
+    const paramString: any = `${HttpRequestBuilder.buildUrlQuery(filters)}`;
+    if (paramString) url = `${url}&${paramString}`;
     return url;
   }
 
@@ -84,12 +55,16 @@ export abstract class HttpRequestBuilder {
         case 201:
           return Object.assign({}, normalize(response.data, { endpoint: request.endpoint }));
         default:
-          throw response.statusText;
-      }
+          throw new TypeError("kapot");
+        }
     }).catch((error) => {
       if (axios.isCancel(error)) {
         console.log('post Request canceled');
       }
+      return {
+        error: true,
+        response: error
+      };
     });;
   }
 }

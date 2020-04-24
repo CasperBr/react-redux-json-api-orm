@@ -67,6 +67,7 @@ export class ResourceHook extends Resource {
   public static useResource(store: any, id: number) {
     useEffect(() => {
       this.fetch(store, id);
+    // eslint-disable-next-line
     }, [id]);
     let resource = this.select(id);
     return resource;
@@ -109,6 +110,7 @@ export class ResourceHook extends Resource {
    * Fetch resource from api by id
    */
   public static async fetch(store: any, id: number | string | undefined) {
+    console.log(this.prototype.includes);
     const request: JsonApiRequestConfig = {
       action: "FETCH_RESOURCES",
       method: "GET",
@@ -125,10 +127,16 @@ export class ResourceHook extends Resource {
    */
   public static fetchAll(store, requestParams?: IRequestParams) {
     requestParams = requestParams ? requestParams : {};
-    const { type, includes, searchable, size, number } = this.prototype;
-    let { filter, page, date } = requestParams;
-    date = date ? date : {};
-    const { min, max, field } = date;
+    const { type, includes } = this.prototype;
+    let { filters } = requestParams;
+    let filterString;
+    if (filters) {
+      filters.forEach((e) => {
+        filterString += e.value;
+      });
+    }
+   
+    filters = filters ? filters: [];
 
     useEffect(() => {
       if (type) {
@@ -137,21 +145,14 @@ export class ResourceHook extends Resource {
           method: "GET",
           endpoint: type,
           queryParams: {
-            filter: {
-              query: filter,
-              field: searchable.length ? searchable[0] : null
-            },
-            include: includes,
-            page: {
-              size: page && page.size ? page.size : size,
-              number: page && page.number ? page.number : number
-            },
-            date
+            include: requestParams && requestParams.includes ? requestParams.includes: includes,
+            filters
           }
         }
         this.asyncAction(store, request);
       }
-    }, [filter, type, size, number, min, max, field])
+    // eslint-disable-next-line
+    }, [filterString])
   }
 
   /**

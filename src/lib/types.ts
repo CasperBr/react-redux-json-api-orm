@@ -1,3 +1,5 @@
+import { IQueryParam } from "./httpRequestBuilder";
+
 export interface JsonApiRequestConfig {
   action: string
   endpoint: string
@@ -11,6 +13,7 @@ export interface JsonApiRequestConfig {
       query?: string
     }
     include?: string
+    filters?: IQueryParam[]
   }
   jwtAccessToken?: string
   options?: any

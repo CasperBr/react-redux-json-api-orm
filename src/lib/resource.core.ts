@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { inject, injectable } from 'inversify';
+import { injectable } from 'inversify';
 import { HttpRequestBuilder } from './httpRequestBuilder';
 
 export interface IRequestParams {
@@ -12,7 +12,9 @@ export interface IRequestParams {
     field?: string
     min?: string,
     max?: string
-  }
+  },
+  includes?: string,
+  filters?: any
 }
 
 /**
@@ -47,7 +49,7 @@ export class Resource {
   }
 
   get includes() {
-    if (this.toMany.length === 0 && this.toOne.length === 0) return;
+    if (this.toMany.length === 0 && this.toOne.length === 0) return undefined;
     return [...this.toOne, ...this.nested, ...this.toMany].join(',');
   }
 
@@ -87,9 +89,15 @@ export class Resource {
 
   public static asyncAction(store: any, request: any) {
     return HttpRequestBuilder.jsonApiRequest(request)
-      .then(payload => {
-        store.dispatch({ type: `${request.action}_SUCCESS`, payload });
-        if (request.cb) request.cb(payload);
+      .then(response => {
+        if (response.error) {
+          return response;
+        }
+        store.dispatch({ type: `${request.action}_SUCCESS`, payload: response });
+        return response;
+      })
+      .catch((error) => {
+        return error
       });
   }
 }
