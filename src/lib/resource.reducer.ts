@@ -2,12 +2,14 @@ import { StateManager } from './stateManager';
 
 export function resources(state = {}, action) {
   switch (action.type) {
-    case "FETCH_RESOURCES_SUCCESS":
+    case "FILTER_RESOURCES_SUCCESS":
+      // return StateManager.mergeResources(state, action.payload);
       let newState = StateManager.mergeResources(state, action.payload);
       return {
         ...newState,
         [action.resourceType]: action.payload[action.resourceType] // Overwrite fetches resourcetype for filtering
       }
+    case "FETCH_RESOURCES_SUCCESS":
     case "PATCH_RESOURCE_SUCCESS":
     case "POST_RESOURCES_SUCCESS":
     case "POST_RESOURCE_SUCCESS":

@@ -3,6 +3,7 @@ import { injectable } from 'inversify';
 import { HttpRequestBuilder } from './httpRequestBuilder';
 
 export interface IRequestParams {
+  actionType?: string
   filter?: string
   page?: {
     number?: number

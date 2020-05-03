@@ -31,6 +31,7 @@ export class ResourceHook extends Resource {
     );
   }
 
+
   /**
    * React hook: Select all resources from store
    * @param type 
@@ -41,9 +42,17 @@ export class ResourceHook extends Resource {
     return createSelector(
       (state: any) => state.api,
       (rawResources: any) => {
+
         if (type && rawResources) {
+
           let resources: any = [];
           let builtResources: any = build(rawResources, type, null, { ignoreLinks: true, includeType: true });
+
+          if (builtResources) {
+            builtResources = this.filter(builtResources, requestParams);
+            // builtResources = this.filterByQuery(builtResources, requestParams);
+            builtResources = this.filterByPage(builtResources, requestParams);
+          }
           // Create class instances
           builtResources && builtResources.forEach((r: any) => {
             resources.push(baseClass.createResource(baseClass, r));
@@ -134,7 +143,7 @@ export class ResourceHook extends Resource {
     useEffect(() => {
       if (type) {
         const request = {
-          action: (requestParams && requestParams.actionType) ? requestParams.actionType : "FETCH_RESOURCES",
+          action: requestParams && requestParams.actionType ? requestParams.actionType : "FETCH_RESOURCES",
           method: "GET",
           endpoint: type,
           queryParams: {
@@ -295,6 +304,19 @@ export class ResourceHook extends Resource {
         return r[searchable[0]].indexOf(filter) > -1;
       });
     }
+    return resources;
+  }
+
+  public static filter(resources, requestParams) {
+    requestParams.filters && requestParams.filters.forEach((f) => {
+      if (f.type === "filter") {
+        resources = resources.filter((r) => {
+          if (f.relationship && r[f.relationship]) return typeof r[f.relationship].find((rel) => rel.id === f.value) === 'object';
+          if (f.operator === "=like:" && f.value !== "") return r[f.attribute].indexOf(f.value) > -1;
+          return true;
+        });
+      }
+    });
     return resources;
   }
 
