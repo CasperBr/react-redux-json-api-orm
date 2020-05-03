@@ -15,7 +15,7 @@ export class StateManager {
       draft[type][id].relationships[rType].data = relationships
     });
   }
-
+  
   public static mergeResources(resources, payload) {
     return _.mergeWith(
       {}, resources, payload,

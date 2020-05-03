@@ -13,20 +13,32 @@ export interface IQueryParam {
  * Request builder
  */
 export abstract class HttpRequestBuilder {
-  public static addFilter(filter: IQueryParam) {
+  /**
+   * Returns a querystring for the give QueryParam
+   * @param filter 
+   */
+  public static makeFilter(filter: IQueryParam) {
     const { attribute, operator, value, type } = filter;
     return `${type}[${attribute}]${operator}${value}`;
   }
 
+  /**
+   * Takes all query filter objects and returns a querystring
+   * @param queryParams 
+   */
   public static buildUrlQuery(queryParams: IQueryParam[]) {
     let params: string[] = [];
     queryParams.forEach((f) => {
-      params.push(HttpRequestBuilder.addFilter(f));
+      if (f.value) params.push(HttpRequestBuilder.makeFilter(f));
     });
     if (params.length > 0) return params.join('&');
     if (params) return params.join('&');
   }
 
+  /**
+   * Builds the url used by Json API
+   * @param request 
+   */
   public static buildUrl(request: JsonApiRequestConfig) {
     let url = request.endpoint;
     let includes = request.queryParams && request.queryParams.include ? `includes=${request.queryParams.include}`: '';

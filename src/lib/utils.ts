@@ -13,10 +13,16 @@ const convertFieldsToJsonApi = (fields) => {
      */
     Object.keys(fields).forEach((key) => {
         let field = fields[key];
-        if (field.endpoint && !field.skipForSubmit) {
+        if (field.skipForSubmit) return;
+
+        if (field.relationship === 'toMany') {
+            data.relationships[field.name] = {
+                data: [{type:field.jsonApiType, id: "1" }]
+            }
+        } else if (field.relationship === 'toOne') {
             data.relationships[field.name] = {
                 data: {
-                    "type": field.endpoint,
+                    "type": field.jsonApiType,
                     "id": field.value
                 }
             }

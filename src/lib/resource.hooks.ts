@@ -44,11 +44,6 @@ export class ResourceHook extends Resource {
         if (type && rawResources) {
           let resources: any = [];
           let builtResources: any = build(rawResources, type, null, { ignoreLinks: true, includeType: true });
-          if (builtResources) {
-            builtResources = this.filterByQuery(builtResources, requestParams);
-            builtResources = this.filterByPage(builtResources, requestParams);
-          }
-
           // Create class instances
           builtResources && builtResources.forEach((r: any) => {
             resources.push(baseClass.createResource(baseClass, r));
@@ -110,7 +105,6 @@ export class ResourceHook extends Resource {
    * Fetch resource from api by id
    */
   public static async fetch(store: any, id: number | string | undefined) {
-    console.log(this.prototype.includes);
     const request: JsonApiRequestConfig = {
       action: "FETCH_RESOURCES",
       method: "GET",
@@ -129,19 +123,18 @@ export class ResourceHook extends Resource {
     requestParams = requestParams ? requestParams : {};
     const { type, includes } = this.prototype;
     let { filters } = requestParams;
-    let filterString;
+    let filterString = type;
     if (filters) {
       filters.forEach((e) => {
         filterString += e.value;
       });
     }
-   
     filters = filters ? filters: [];
 
     useEffect(() => {
       if (type) {
         const request = {
-          action: "FETCH_RESOURCES",
+          action: (requestParams && requestParams.actionType) ? requestParams.actionType : "FETCH_RESOURCES",
           method: "GET",
           endpoint: type,
           queryParams: {
