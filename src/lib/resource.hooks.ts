@@ -51,7 +51,7 @@ export class ResourceHook extends Resource {
           if (builtResources) {
             builtResources = this.filter(builtResources, requestParams);
             // builtResources = this.filterByQuery(builtResources, requestParams);
-            builtResources = this.filterByPage(builtResources, requestParams);
+            // builtResources = this.filterByPage(builtResources, requestParams);
           }
           // Create class instances
           builtResources && builtResources.forEach((r: any) => {
@@ -200,7 +200,8 @@ export class ResourceHook extends Resource {
         include: this.patchIncludes(resource)
       }
     };
-    this.hydrate(store, "HYDRATE_RESOURCE", data);
+    console.log("REQUEST = ",request);
+    // this.hydrate(store, "PATCH_RESOURCE", data);
     return this.asyncAction(store, { ...request, action: "PATCH_RESOURCE", method: "PATCH" });
   }
 
@@ -327,7 +328,7 @@ export class ResourceHook extends Resource {
    */
   public static filterByPage(resources: any[], requestParams: any) {
     if (!requestParams) return resources;
-
+    
     if (requestParams.page) {
       const { number, size } = requestParams.page;
       if (number && size && resources) {
@@ -340,7 +341,7 @@ export class ResourceHook extends Resource {
   /**
    * Non generic functions, should be moved to Project scope.
    */
-  public patchFormFields(store, fields) {
+  public async patchFormFields(store, fields) {
     const data = convertFieldsToJsonApi(fields);
     return this.patch(store, data);
   }

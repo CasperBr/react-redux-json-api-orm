@@ -41,7 +41,7 @@ export abstract class HttpRequestBuilder {
    */
   public static buildUrl(request: JsonApiRequestConfig) {
     let url = request.endpoint;
-    let includes = request.queryParams && request.queryParams.include ? `includes=${request.queryParams.include}`: '';
+    let includes = request.queryParams && request.queryParams.include ? `include=${request.queryParams.include}`: '';
     url = includes ? `${url}?${includes}`: url;
     const filters = request.queryParams && request.queryParams.filters ? request.queryParams.filters:  [];
     const paramString: any = `${HttpRequestBuilder.buildUrlQuery(filters)}`;
@@ -55,7 +55,7 @@ export abstract class HttpRequestBuilder {
     return axios({
       method: request.method,
       headers: {
-        'Accept': 'application/json, text/plain, */*',
+        'Accept': 'application/vnd.api+json',
         'Content-Type': 'application/vnd.api+json'
       },
       ...request.options,
@@ -65,6 +65,9 @@ export abstract class HttpRequestBuilder {
       switch (response.status) {
         case 200:
         case 201:
+          if (request.method === "PATCH") {
+            return Object.assign({}, normalize(request.formData, { endpoint: request.endpoint }));
+          }
           return Object.assign({}, normalize(response.data, { endpoint: request.endpoint }));
         default:
           throw new TypeError("kapot");
@@ -77,6 +80,6 @@ export abstract class HttpRequestBuilder {
         error: true,
         response: error
       };
-    });;
+    });
   }
 }
