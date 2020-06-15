@@ -1,19 +1,25 @@
-import { Resource, IRequestParams } from "./resource.core";
-import { createSelector } from "reselect";
-import { useEffect } from "react";
-import { useSelector, shallowEqual } from "react-redux";
-import { convertFieldsToJsonApi, entitiesToRelationships } from "./utils";
+import { Resource, IRequestParams } from './resource.core';
+import { createSelector } from 'reselect';
+import { useEffect } from 'react';
+import { useSelector, shallowEqual } from 'react-redux';
+import { convertFieldsToJsonApi, entitiesToRelationships } from './utils';
 import build from 'redux-object';
-import { JsonApiRequestConfig } from "./types";
+import { JsonApiRequestConfig } from './types';
 
 /**
  * Resource based on React Hooks principles
  */
 export class ResourceHook extends Resource {
+  page: number = 1;
+  query: string = '';
+  size: number = 10;
+  filters: any[] = [];
+  customIncludes: any;
+
   /**
    * React hook: Select single resource from store
-   * @param type 
-   * @param id 
+   * @param type
+   * @param id
    */
   public static createResourceSelector(id: number) {
     const baseClass = this;
@@ -22,19 +28,19 @@ export class ResourceHook extends Resource {
       (state: any) => state.api,
       (resources: any) => {
         if (resources && type && resources[type]) {
-          let resource = build(resources, type, id, { ignoreLinks: true, includeType: true });
-          if (resource && resource.id) {
-            return baseClass.createResource(this, resource);
-          }
+          let resource = build(resources, type, id, {
+            ignoreLinks: true,
+            includeType: true
+          });
+          if (resource && resource.id) return baseClass.createResource(this, resource);
         }
       }
     );
   }
 
-
   /**
    * React hook: Select all resources from store
-   * @param type 
+   * @param type
    */
   public static createResourcesSelector(requestParams?: any) {
     const baseClass = this;
@@ -42,138 +48,130 @@ export class ResourceHook extends Resource {
     return createSelector(
       (state: any) => state.api,
       (rawResources: any) => {
-
         if (type && rawResources) {
-
           let resources: any = [];
-          let builtResources: any = build(rawResources, type, null, { ignoreLinks: true, includeType: true });
-
-          if (builtResources) {
-            builtResources = this.filter(builtResources, requestParams);
-            // builtResources = this.filterByQuery(builtResources, requestParams);
-            // builtResources = this.filterByPage(builtResources, requestParams);
-          }
-          // Create class instances
-          builtResources && builtResources.forEach((r: any) => {
-            resources.push(baseClass.createResource(baseClass, r));
+          let builtResources: any = build(rawResources, type, null, {
+            ignoreLinks: true,
+            includeType: true
           });
 
-          return [...resources || []];
+          if (builtResources) {
+            builtResources = this.filterByQuery(builtResources);
+            console.log(this.prototype.page);
+            builtResources = this.filterByPage(builtResources);
+          }
+
+          // Create class instances
+          builtResources &&
+            builtResources.forEach((r: any) => {
+              resources.push(baseClass.createResource(baseClass, r));
+            });
+
+          return [...(resources || [])];
         }
       }
     );
   }
 
   /**
-  * React hook: Use this resource by fetching and selecting from store
-  * @param id
-  */
-  public static useResource(store: any, id: number) {
+   * React hook: Use this resource by fetching and selecting from store
+   * @param id
+   */
+  public static useSingle(store: any, id: number) {
     useEffect(() => {
       this.fetch(store, id);
-    // eslint-disable-next-line
     }, [id]);
-    let resource = this.select(id);
-    return resource;
+    return this.select(id);
   }
 
   /**
    * React hook: Use resources by fetching and selecting from store
-   * @param requestParams 
+   * @param requestParams
    */
-  public static useResources(store: any, requestParams?: IRequestParams) {
-    requestParams = requestParams ? requestParams : {};
-    this.fetchAll(store, requestParams);
-    const resources = this.selectAll(requestParams);
-    return resources;
+  public static use(store: any) {
+    this.fetchAll(store);
+    return this.selectAll();
   }
 
   /**
    * Select this resource from redux store
    */
   public static select(id: number) {
-    const type = this.prototype.type;
-    if (type) {
+    if (this.prototype.type) {
       const selectResource = this.createResourceSelector(id);
-      let resource = useSelector(selectResource, shallowEqual);
-      return resource;
+      return useSelector(selectResource, shallowEqual);
     }
   }
 
   /**
    * Select all resources from store
    */
-  public static selectAll(requestParams?: IRequestParams) {
-    requestParams = requestParams ? requestParams : {};
-    const selectResources = this.createResourcesSelector(requestParams);
-    let resources = useSelector(selectResources, shallowEqual);
-    return resources;
+  public static selectAll() {
+    const selectResources = this.createResourcesSelector();
+    return useSelector(selectResources, shallowEqual);
   }
 
   /**
    * Fetch resource from api by id
    */
-  public static async fetch(store: any, id: number | string | undefined) {
+  public static async fetch(store: any, id: number | string | undefined ) {
+    const { includes } = this.prototype;
+
     const request: JsonApiRequestConfig = {
-      action: "FETCH_RESOURCES",
-      method: "GET",
+      action: 'FETCH_RESOURCES',
+      method: 'GET',
       endpoint: `${this.prototype.type}/${id}`,
       queryParams: {
-        include: this.prototype.includes
+        include: this.prototype.customIncludes ? this.prototype.customIncludes: includes,
       }
-    }
+    };
     this.asyncAction(store, request);
   }
 
   /**
    * Fetch all resources from api by class type
    */
-  public static fetchAll(store, requestParams?: IRequestParams) {
-    requestParams = requestParams ? requestParams : {};
-    const { type, includes } = this.prototype;
-    let { filters } = requestParams;
-    let filterString = type;
-    if (filters) {
-      filters.forEach((e) => {
-        filterString += e.value;
-      });
-    }
-    filters = filters ? filters: [];
+  public static fetchAll(store) {
+    const { type, includes, searchable } = this.prototype;
 
     useEffect(() => {
+      console.log("REFRESH");
       if (type) {
         const request = {
-          action: requestParams && requestParams.actionType ? requestParams.actionType : "FETCH_RESOURCES",
-          method: "GET",
+          action: 'FETCH_RESOURCES',
+          method: 'GET',
           endpoint: type,
           queryParams: {
-            include: requestParams && requestParams.includes ? requestParams.includes: includes,
-            filters
+            include: this.prototype.customIncludes ? this.prototype.customIncludes: includes,
+            page: this.prototype.page,
+            size: this.prototype.size,
+            searchable,
+            query: this.prototype.query,
+            filters: this.prototype.filters
           }
-        }
+        };
         this.asyncAction(store, request);
       }
-    // eslint-disable-next-line
-    }, [filterString])
+      // eslint-disable-next-line
+    }, [this.getRefreshString()]);
   }
 
   /**
    * Create a resource and store response in store
-   * @param store 
-   * @param fields 
+   * @param store
+   * @param fields
    */
   public static create(store: any, data: any, action?: string): any {
     const request = {
-      action: action ? action : "POST_RESOURCE",
+      action: action ? action : 'POST_RESOURCE',
       endpoint: `${this.prototype.type}/`,
-      method: "POST",
+      method: 'POST',
       queryParams: {
         include: this.patchIncludes(data)
       },
       formData: {
-        data:
-        {
-          "type": this.prototype.type,
+        data: {
+          type: this.prototype.type,
           ...data
         }
       }
@@ -186,8 +184,8 @@ export class ResourceHook extends Resource {
    */
   public patch(store: any, resource) {
     const data = {
-      "id": this.id,
-      "type": this.type,
+      id: this.id,
+      type: this.type,
       ...resource
     };
 
@@ -200,48 +198,52 @@ export class ResourceHook extends Resource {
         include: this.patchIncludes(resource)
       }
     };
-    console.log("REQUEST = ",request);
     // this.hydrate(store, "PATCH_RESOURCE", data);
-    return this.asyncAction(store, { ...request, action: "PATCH_RESOURCE", method: "PATCH" });
+    return this.asyncAction(store, {
+      ...request,
+      action: 'PATCH_RESOURCE',
+      method: 'PATCH'
+    });
   }
 
   /**
    * Delete this resource
    */
-  public delete(store: any) {
+  public async delete(store: any) {
     const data = {
-      "id": this.id,
-      "type": this.type
+      id: this.id,
+      type: this.type
     };
 
     const request = {
-      action: "POST_RESOURCE",
+      action: 'POST_RESOURCE',
       endpoint: `${this.type}/${this.id}`,
-      method: "DELETE",
+      method: 'DELETE',
       formData: {
         data
       }
     };
-    this.asyncAction(store, request);
-    this.hydrate(store, "DELETE_RESOURCE", data);
+    // this.hydrate(store, "DELETE_RESOURCE", data);
+
+    return this.asyncAction(store, request);
   }
 
   /**
    * Add array of relationships to resource
-   * @param relationshipFields 
+   * @param relationshipFields
    */
   public patchRelationships(store: any, relationships: any, rType: any) {
     const request = {
-      type: "POST_RESOURCE",
+      type: 'POST_RESOURCE',
       endpoint: `${this.type}/${this.id}/relationships/${rType}`,
-      method: "PATCH",
+      method: 'PATCH',
       formData: {
-        "data": relationships
+        data: relationships
       }
-    }
+    };
     this.asyncAction(store, request);
 
-    this.hydrate(store, "HYDRATE_RELATIONSHIPS", {
+    this.hydrate(store, 'HYDRATE_RELATIONSHIPS', {
       id: this.id,
       type: this.type,
       relationships,
@@ -252,21 +254,21 @@ export class ResourceHook extends Resource {
   /**
    * Delete relationship from table and store
    * @param rId
-   * @param rType 
+   * @param rType
    */
-  public deleteRelationship(store, rId: number, rType: string) {
+  public deleteRelationship(store, rId: number | string, rType: string) {
     if (!this[rType]) return;
     const relationships = this[rType];
 
     // Update table
-    Object.keys(relationships).forEach(function (key) {
+    Object.keys(relationships).forEach(function(key) {
       if (relationships[key].id === rId) delete relationships[key];
     });
     const relationshipFields = [...entitiesToRelationships(this[rType], rType)];
     this.patchRelationships(store, relationshipFields, rType);
 
     // Hydrate store
-    this.hydrate(store, "DELETE_RELATIONSHIP", {
+    this.hydrate(store, 'DELETE_RELATIONSHIP', {
       id: this.id,
       type: this.type,
       rType,
@@ -275,14 +277,14 @@ export class ResourceHook extends Resource {
   }
 
   /**
-  * Create new instance of this resource
-  * @param type 
-  * @param arg 
-  */
+   * Create new instance of this resource
+   * @param type
+   * @param arg
+   */
   public static createResource(type: any, arg: any) {
     let resource = new type(arg);
     if (arg && Object.keys(arg).length > 0) {
-      Object.keys(arg).forEach((key) => {
+      Object.keys(arg).forEach(key => {
         resource[key] = arg[key];
       });
     }
@@ -291,50 +293,32 @@ export class ResourceHook extends Resource {
 
   /**
    * Filter given resources by query
-   * @param resources 
-   * @param requestParams 
+   * @param resources
+   * @param requestParams
    */
-  public static filterByQuery(resources, requestParams: IRequestParams) {
-    if (!requestParams) return resources;
-
+  public static filterByQuery(resources) {
     const { searchable } = this.prototype;
-    const { filter } = requestParams;
 
-    if (searchable && filter) {
+    if (searchable && this.prototype.query) {
       return resources.filter((r: any) => {
-        return r[searchable[0]].indexOf(filter) > -1;
+        return r[searchable[0]].indexOf(this.prototype.query) > -1;
       });
     }
-    return resources;
-  }
-
-  public static filter(resources, requestParams) {
-    requestParams.filters && requestParams.filters.forEach((f) => {
-      if (f.type === "filter") {
-        resources = resources.filter((r) => {
-          if (f.relationship && r[f.relationship]) return typeof r[f.relationship].find((rel) => rel.id === f.value) === 'object';
-          if (f.operator === "=like:" && f.value !== "") return r[f.attribute].indexOf(f.value) > -1;
-          return true;
-        });
-      }
-    });
     return resources;
   }
 
   /**
    * Filter given resources by page and size
    * @param resources
-   * @param requestParams 
+   * @param requestParams
    */
-  public static filterByPage(resources: any[], requestParams: any) {
-    if (!requestParams) return resources;
-    
-    if (requestParams.page) {
-      const { number, size } = requestParams.page;
-      if (number && size && resources) {
-        return resources.slice((number * size - size), (number * size));
-      }
+  public static filterByPage(resources: any[]) {
+    const { size, page } = this.prototype;
+  
+    if (page && size && resources) {
+      return resources.slice(page * size - size, page * size);
     }
+    
     return resources;
   }
 
@@ -348,12 +332,52 @@ export class ResourceHook extends Resource {
 
   /**
    * Add a single relationship to this resource
-   * @param relationshipField 
+   * @param relationshipField
    */
   public addRelationship(store, relationshipField) {
     if (!relationshipField) return;
     const type = relationshipField.type;
-    const relationshipFields = [...entitiesToRelationships(this[type], type), relationshipField];
+    const relationshipFields = [
+      ...entitiesToRelationships(this[type], type),
+      relationshipField
+    ];
     this.patchRelationships(store, relationshipFields, type);
+  }
+
+  public static getRefreshString(): string {
+    return this.prototype.page?.toString() + this.prototype.size?.toString() + this.prototype.query?.toString() + this.prototype.filters?.join();
+  }
+
+  /**
+   * Chaining functions
+   */
+  public static paginate(page: number): ResourceHook {
+    this.prototype.page = page;
+    // @ts-ignore
+    return this;
+  }
+
+  public static setIncludes(includes: string): ResourceHook {
+    this.prototype.customIncludes = includes;
+    // @ts-ignore
+    return this;
+  }
+
+  public static pageSize(size: number): ResourceHook {
+    this.prototype.size = size;
+    // @ts-ignore
+    return this;
+  }
+
+  public static searchQuery(searchQuery: string): ResourceHook {
+    this.prototype.query = searchQuery;
+    // @ts-ignore
+    return this;
+  }
+
+  public static setFilters(filters: any): ResourceHook {
+    this.prototype.filters = filters;
+    // @ts-ignore
+    return this;
   }
 }

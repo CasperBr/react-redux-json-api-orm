@@ -1,7 +1,6 @@
 import { StateManager } from './stateManager';
 
 export function resources(state = {}, action) {
-  console.log("RESTULT = ", action);
   switch (action.type) {
     case "FILTER_RESOURCES_SUCCESS":
       let newState = StateManager.mergeResources(state, action.payload);

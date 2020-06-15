@@ -39,13 +39,46 @@ export abstract class HttpRequestBuilder {
    * Builds the url used by Json API
    * @param request 
    */
-  public static buildUrl(request: JsonApiRequestConfig) {
+  public static buildUrl(request: any) {
+    // Set endpoint
     let url = request.endpoint;
-    let includes = request.queryParams && request.queryParams.include ? `include=${request.queryParams.include}`: '';
-    url = includes ? `${url}?${includes}`: url;
-    const filters = request.queryParams && request.queryParams.filters ? request.queryParams.filters:  [];
-    const paramString: any = `${HttpRequestBuilder.buildUrlQuery(filters)}`;
-    if (paramString) url = `${url}&${paramString}`;
+    let filters: any = [];
+
+    // Set relationships
+    let includes = request?.queryParams?.include ? `include=${request.queryParams.include}`: '';
+    
+    // Paginate
+    if (request?.queryParams?.page && request?.queryParams?.size) {
+      filters.push({
+        type: "page",
+        attribute: "size",
+        operator: "=",
+        value: request?.queryParams?.size,
+      });
+      filters.push( {
+        type: "page",
+        attribute: "number",
+        operator: "=",
+        value: request?.queryParams?.page,
+      });
+    }
+
+    // Search
+    if (request?.queryParams?.searchable && request?.queryParams?.query) {
+      filters.push( {
+        type: "filter",
+        attribute: request?.queryParams?.searchable[0],
+        operator: "=like:",
+        value: request?.queryParams?.query
+      });
+    }
+
+    if (request?.queryParams?.filters) filters = [...filters, ...request.queryParams.filters];
+
+    const filterString = this.buildUrlQuery(filters);
+
+    // Includes
+    url = includes ? `${url}?${includes}&${filterString}`: `${url}?${filterString}`;
     return url;
   }
 
@@ -69,6 +102,8 @@ export abstract class HttpRequestBuilder {
             return Object.assign({}, normalize(request.formData, { endpoint: request.endpoint }));
           }
           return Object.assign({}, normalize(response.data, { endpoint: request.endpoint }));
+        case 204:
+          return true;
         default:
           throw new TypeError("kapot");
         }

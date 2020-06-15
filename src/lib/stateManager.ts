@@ -36,17 +36,17 @@ export class StateManager {
   public static deleteRelationship(resources, payload) {
     let { id, type, relationshipType, relationshipId } = payload;
     const filteredResources = produce(resources, draft => {
-      // Remove source relation
-      let sourceData = draft[type][id].relationships[relationshipType].data;
-      sourceData.filter(s => s.id !== relationshipId);
+      // // Remove source relation
+      // let sourceData = draft[type][id].relationships[relationshipType].data;
+      // sourceData.filter(s => s.id !== relationshipId);
 
-      // Remove target relation if exists
-      try {
-        let targetData = draft[relationshipType][relationshipId].relationships[type].data;
-        targetData.filter(t => t !== id);
-      } catch (e) {
-        console.log('no need to update relation');
-      }
+      // // Remove target relation if exists
+      // try {
+      //   let targetData = draft[relationshipType][relationshipId].relationships[type].data;
+      //   targetData.filter(t => t !== id);
+      // } catch (e) {
+      //   console.log('no need to update relation');
+      // }
     });
     return filteredResources;
   }
