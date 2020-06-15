@@ -4,14 +4,8 @@ export interface JsonApiRequestConfig {
   action: string
   endpoint: string
   queryParams?: {
-    page?: {
-      number?: number
-      size?: number
-    }
-    filter?: {
-      field?: string
-      query?: string
-    }
+    page?: number
+    size?: number
     include?: string
     filters?: IQueryParam[]
   }

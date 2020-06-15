@@ -3,6 +3,7 @@ import { injectable } from 'inversify';
 import { HttpRequestBuilder } from './httpRequestBuilder';
 
 export interface IRequestParams {
+  actionType?: string
   filter?: string
   page?: {
     number?: number
@@ -93,7 +94,7 @@ export class Resource {
         if (response.error) {
           return response;
         }
-        store.dispatch({ type: `${request.action}_SUCCESS`, payload: response });
+        store.dispatch({ type: `${request.action}_SUCCESS`, payload: response, resourceType: request.endpoint });
         return response;
       })
       .catch((error) => {

@@ -13,27 +13,72 @@ export interface IQueryParam {
  * Request builder
  */
 export abstract class HttpRequestBuilder {
-  public static addFilter(filter: IQueryParam) {
+  /**
+   * Returns a querystring for the give QueryParam
+   * @param filter 
+   */
+  public static makeFilter(filter: IQueryParam) {
     const { attribute, operator, value, type } = filter;
     return `${type}[${attribute}]${operator}${value}`;
   }
 
+  /**
+   * Takes all query filter objects and returns a querystring
+   * @param queryParams 
+   */
   public static buildUrlQuery(queryParams: IQueryParam[]) {
     let params: string[] = [];
     queryParams.forEach((f) => {
-      params.push(HttpRequestBuilder.addFilter(f));
+      if (f.value) params.push(HttpRequestBuilder.makeFilter(f));
     });
     if (params.length > 0) return params.join('&');
     if (params) return params.join('&');
   }
 
-  public static buildUrl(request: JsonApiRequestConfig) {
+  /**
+   * Builds the url used by Json API
+   * @param request 
+   */
+  public static buildUrl(request: any) {
+    // Set endpoint
     let url = request.endpoint;
-    let includes = request.queryParams && request.queryParams.include ? `includes=${request.queryParams.include}`: '';
-    url = includes ? `${url}?${includes}`: url;
-    const filters = request.queryParams && request.queryParams.filters ? request.queryParams.filters:  [];
-    const paramString: any = `${HttpRequestBuilder.buildUrlQuery(filters)}`;
-    if (paramString) url = `${url}&${paramString}`;
+    let filters: any = [];
+
+    // Set relationships
+    let includes = request?.queryParams?.include ? `include=${request.queryParams.include}`: '';
+    
+    // Paginate
+    if (request?.queryParams?.page && request?.queryParams?.size) {
+      filters.push({
+        type: "page",
+        attribute: "size",
+        operator: "=",
+        value: request?.queryParams?.size,
+      });
+      filters.push( {
+        type: "page",
+        attribute: "number",
+        operator: "=",
+        value: request?.queryParams?.page,
+      });
+    }
+
+    // Search
+    if (request?.queryParams?.searchable && request?.queryParams?.query) {
+      filters.push( {
+        type: "filter",
+        attribute: request?.queryParams?.searchable[0],
+        operator: "=like:",
+        value: request?.queryParams?.query
+      });
+    }
+
+    if (request?.queryParams?.filters) filters = [...filters, ...request.queryParams.filters];
+
+    const filterString = this.buildUrlQuery(filters);
+
+    // Includes
+    url = includes ? `${url}?${includes}&${filterString}`: `${url}?${filterString}`;
     return url;
   }
 
@@ -43,7 +88,7 @@ export abstract class HttpRequestBuilder {
     return axios({
       method: request.method,
       headers: {
-        'Accept': 'application/json, text/plain, */*',
+        'Accept': 'application/vnd.api+json',
         'Content-Type': 'application/vnd.api+json'
       },
       ...request.options,
@@ -53,7 +98,12 @@ export abstract class HttpRequestBuilder {
       switch (response.status) {
         case 200:
         case 201:
+          if (request.method === "PATCH") {
+            return Object.assign({}, normalize(request.formData, { endpoint: request.endpoint }));
+          }
           return Object.assign({}, normalize(response.data, { endpoint: request.endpoint }));
+        case 204:
+          return true;
         default:
           throw new TypeError("kapot");
         }
@@ -65,6 +115,6 @@ export abstract class HttpRequestBuilder {
         error: true,
         response: error
       };
-    });;
+    });
   }
 }
