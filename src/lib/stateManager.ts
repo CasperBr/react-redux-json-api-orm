@@ -1,4 +1,4 @@
-import produce from "immer";
+import produce from 'immer';
 import _ from 'lodash';
 
 export class StateManager {
@@ -12,15 +12,12 @@ export class StateManager {
   public static hydrateRelationships(resources, payload) {
     let { id, type, rType, relationships } = payload;
     return produce(resources, (draft: any) => {
-      draft[type][id].relationships[rType].data = relationships
+      draft[type][id].relationships[rType].data = relationships;
     });
   }
-  
+
   public static mergeResources(resources, payload) {
-    return _.mergeWith(
-      {}, resources, payload,
-      (a, b) => b === null ? a : undefined
-    );
+    return _.mergeWith({}, resources, payload, (a, b) => (b === null ? a : undefined));
   }
 
   public static deleteResource(resources, payload) {
@@ -39,7 +36,6 @@ export class StateManager {
       // // Remove source relation
       // let sourceData = draft[type][id].relationships[relationshipType].data;
       // sourceData.filter(s => s.id !== relationshipId);
-
       // // Remove target relation if exists
       // try {
       //   let targetData = draft[relationshipType][relationshipId].relationships[type].data;

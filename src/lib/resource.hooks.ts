@@ -5,6 +5,7 @@ import { useSelector, shallowEqual } from 'react-redux';
 import { convertFieldsToJsonApi, entitiesToRelationships } from './utils';
 import build from 'redux-object';
 import { JsonApiRequestConfig } from './types';
+import { HttpRequestBuilder } from './httpRequestBuilder';
 
 /**
  * Resource based on React Hooks principles
@@ -57,7 +58,6 @@ export class ResourceHook extends Resource {
 
           if (builtResources) {
             builtResources = this.filterByQuery(builtResources);
-            console.log(this.prototype.page);
             builtResources = this.filterByPage(builtResources);
           }
 
@@ -81,7 +81,7 @@ export class ResourceHook extends Resource {
     useEffect(() => {
       this.fetch(store, id);
     }, [id]);
-    return this.select(id);
+    return this.useSelect(id);
   }
 
   /**
@@ -96,11 +96,10 @@ export class ResourceHook extends Resource {
   /**
    * Select this resource from redux store
    */
-  public static select(id: number) {
-    if (this.prototype.type) {
+  public static useSelect(id: number) {
       const selectResource = this.createResourceSelector(id);
       return useSelector(selectResource, shallowEqual);
-    }
+   
   }
 
   /**
@@ -135,7 +134,6 @@ export class ResourceHook extends Resource {
     const { type, includes, searchable } = this.prototype;
 
     useEffect(() => {
-      console.log("REFRESH");
       if (type) {
         const request = {
           action: 'FETCH_RESOURCES',
@@ -379,5 +377,41 @@ export class ResourceHook extends Resource {
     this.prototype.filters = filters;
     // @ts-ignore
     return this;
+  }
+
+  /**
+   * Simply get resources, without saving it to the store
+   */
+  public static async get(id?) {
+    const { type, includes, customIncludes } = this.prototype;
+
+    const request: any = {
+      method: 'GET',
+      endpoint: id ? `${type}/${id}/` : type,
+      queryParams: {
+        include: this.prototype.customIncludes ? this.prototype.customIncludes: includes,
+        page: this.prototype.page,
+        size: this.prototype.size,
+        query: this.prototype.query,
+        filters: this.prototype.filters
+      }
+    };
+
+    return HttpRequestBuilder.jsonApiRequest(request)
+      .then(response => {
+        if (response.error) {
+          return response;
+        }
+        if (response && type) {
+          return build(response, type, null, {
+            ignoreLinks: true,
+            includeType: true
+          });
+        }
+        return response;
+      })
+      .catch(error => {
+        return error;
+      });
   }
 }
